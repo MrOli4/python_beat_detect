@@ -101,4 +101,7 @@ while True:
 
 window.close()
 
+# Hello Cheffo
+print("Ojalele")
+
 
