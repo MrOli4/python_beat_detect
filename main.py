@@ -96,7 +96,7 @@ def analyse_audio():
     ax[1].vlines(times[onset_frames], 0, o_env.max(), color='r', alpha=0.9, linestyle='--', label='Onsets')
     ax[1].legend()
 
-    # draw_figure(_VARS['window']['figCanvas'].TKCanvas, fig)
+    draw_figure(_VARS['window']['figCanvas'].TKCanvas, fig)
 
     # plt.show()
 
