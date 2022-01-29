@@ -149,11 +149,11 @@ def calc_bpm(
 
     # Cluster the difference onset data points based on difference
     sorting_list = []
-    avg_factor = 0.05 # Change if needed
+    avg_factor = 0.05  # Change if needed
 
-    # print(avg_list)
+    print(avg_list)
     #
-    if avg_list is True:
+    if avg_list:
         # Already add the first item to provide a reference
 
         sorting_list.append([avg_list[0]])
@@ -287,9 +287,9 @@ def onset_detect(
             freq_in_hertz = abs(freq * 41000)
             # print("Freq in Hz:", freq_in_hertz)
 
-            if freq_in_hertz < 200 and freq_in_hertz > 80:
+            # if freq_in_hertz < 200 and freq_in_hertz > 80:
                 # Now I am highly cherry-picking
-                kick_output.append(x)
+            kick_output.append(x)
 
     # print("Kick Output")
     # print(kick_output)

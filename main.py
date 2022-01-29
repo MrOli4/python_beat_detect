@@ -21,6 +21,8 @@ sg.theme('DarkAmber')   # Add a touch of color
 # All the stuff inside your window.
 layout = [  [sg.Text('Press the button to record the record')],
             [sg.Button('Start Recording'), sg.Button('Stop Recording'), sg.Button('Stop Application')],
+            [sg.Text('BPM: '), sg.Text('Not yet determined')],
+            [sg.Text('BPM to match'), sg.InputText(), sg.Button('Go to BPM')],
             [sg.Text('Amount of time: ', key='timer')],
             [sg.Canvas(key='figCanvas')]]
 
@@ -31,9 +33,6 @@ _VARS['window'] = sg.Window('Such Window',
                             finalize=True,
                             resizable=True,
                             element_justification="left")
-
-# Create the Window
-# window = sg.Window('Beat Detection Program', layout)
 
 THREAD_EVENT = '-THREAD-'
 
@@ -50,7 +49,7 @@ def countdown(time_sec):
         timeformat = '{:02d}:{:02d}'.format(mins, secs)
         print(timeformat)
         time.sleep(1)
-        _VARS['window']['timer'].update(timeformat)
+        # _VARS['window']['timer'].update(timeformat)
         time_sec -= 1
 
 def record_audio():
@@ -65,8 +64,7 @@ def record_audio():
 
     write('audio/output.wav', fs, myrecording)  # Save as WAV file
 
-    # This sleep is placed to allow the program some time before starting analysis
-    time.sleep(1)
+    _VARS['window'].write_event_value('-THREAD-', 'analyse')
 
 def analyse_audio():
     # The code that is actually run
@@ -96,6 +94,7 @@ def analyse_audio():
     ax[1].vlines(times[onset_frames], 0, o_env.max(), color='r', alpha=0.9, linestyle='--', label='Onsets')
     ax[1].legend()
 
+    # _VARS['window']['figCanvas'].TKCanvas.delete("all")
     draw_figure(_VARS['window']['figCanvas'].TKCanvas, fig)
 
     # plt.show()
@@ -111,20 +110,18 @@ def threading_function():
     while True:
         if recording_enabled:
             time_tracker = time.time()
-            print('Recording started')
             # print(time_tracker)
-            if time_tracker > start_time + 5 or first_run:
+            if time_tracker > start_time + 10 or first_run:
 
-                print(start_time)
                 start_time = time_tracker
 
                 # A event is writen to the window that we need to record and analyse audio
-                _VARS['window'].write_event_value('-THREAD-', threading.current_thread().name)
+                _VARS['window'].write_event_value('-THREAD-', 'start_rec')
 
                 # Variable used to detect and pass the first run should be set to False now
                 first_run = False
 
-            time.sleep(5)  # Timer otherwise the tracker wont work
+            time.sleep(1)  # Timer otherwise the tracker wont work
         else:
             time.sleep(1)  # 1 sec sleeper until next variable check
 
@@ -140,17 +137,8 @@ duration = 5  # seconds
 recording_enabled = False
 analysed = False
 timer_thread = threading.Thread(target=threading_function)
-timer_thread.start()  # Start the thread
 
-# Make synthetic data
-dataSize = 1000
-xData = np.random.randint(100, size=dataSize)
-yData = np.linspace(0, dataSize, num=dataSize, dtype=int)
-# make fig and plot
-fig = plt.figure()
-plt.plot(xData, yData, '.k')
-# Instead of plt.show
-draw_figure(_VARS['window']['figCanvas'].TKCanvas, fig)
+timer_thread.start()  # Start the thread
 
 # Event Loop to process "events" and get the "values" of the inputs
 while True:
@@ -168,10 +156,17 @@ while True:
         recording_enabled = False
 
     if event == THREAD_EVENT:
-        record_audio()  # Recording can be done by the thread
-        if not analysed:
-            analyse_audio()
-            analysed = True
+        if values[THREAD_EVENT] == 'start_rec':
+            record_thread = threading.Thread(target=record_audio)
+            record_thread.start()  # Let this thing start, and let it notify the window when done
+        if values[THREAD_EVENT] == 'analyse':
+            print("Analyse")
+            record_thread.join()
+
+            # Only want to run this once now
+            if analysed is False:
+                analyse_audio()
+                analysed = True
 
 timer_thread.join()
 _VARS['window'].close()
