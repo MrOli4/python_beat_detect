@@ -1,5 +1,6 @@
 import librosa
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import librosa.display
 
 import time
@@ -9,7 +10,7 @@ import scipy.signal
 import scipy.ndimage
 import scipy.fftpack
 from scipy.io.wavfile import write
-
+import threading
 from beat_detect_algorithm import onset_detect
 from beat_detect_algorithm import onset_strength_multi
 
@@ -19,19 +20,28 @@ import sounddevice as sd
 sg.theme('DarkAmber')   # Add a touch of color
 # All the stuff inside your window.
 layout = [  [sg.Text('Press the button to record the record')],
-            [sg.Button('Record BPM'), sg.Button('Cancel')],
-            [sg.Text('Amount of time: ', key='timer')] ]
+            [sg.Button('Start Recording'), sg.Button('Stop Recording'), sg.Button('Stop Application')],
+            [sg.Text('Amount of time: ', key='timer')],
+            [sg.Canvas(key='figCanvas')]]
+
+# VARS CONSTS:
+_VARS = {'window': False}
+_VARS['window'] = sg.Window('Such Window',
+                            layout,
+                            finalize=True,
+                            resizable=True,
+                            element_justification="left")
 
 # Create the Window
-window = sg.Window('Beat Detection Program', layout)
+# window = sg.Window('Beat Detection Program', layout)
 
-# Set the sampling frequency of the operation and amount of channels
-fs = 44100
-sd.default.samplerate = fs
-sd.default.channels = 2
-#  This is the recording device, Find recording device with command
-sd.default.device = 1  # This is the Realtek audio mic
-duration = 10  # seconds
+THREAD_EVENT = '-THREAD-'
+
+def draw_figure(canvas, figure):
+    figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
+    figure_canvas_agg.draw()
+    figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
+    return figure_canvas_agg
 
 # define the countdown func. From https://www.geeksforgeeks.org/how-to-create-a-countdown-timer-using-python/
 def countdown(time_sec):
@@ -40,7 +50,7 @@ def countdown(time_sec):
         timeformat = '{:02d}:{:02d}'.format(mins, secs)
         print(timeformat)
         time.sleep(1)
-        window['timer'].update(timeformat)
+        _VARS['window']['timer'].update(timeformat)
         time_sec -= 1
 
 def record_audio():
@@ -86,23 +96,86 @@ def analyse_audio():
     ax[1].vlines(times[onset_frames], 0, o_env.max(), color='r', alpha=0.9, linestyle='--', label='Onsets')
     ax[1].legend()
 
-    plt.show()
+    # draw_figure(_VARS['window']['figCanvas'].TKCanvas, fig)
+
+    # plt.show()
+
+def threading_function():
+    """This function is the thread that keeps track of the current time in the system, updates every 5 seconds
+    It is used to take samples every period, now 5 seconds"""
+
+    first_run = True
+    # Setup overall timer
+    start_time = time.time()
+
+    while True:
+        if recording_enabled:
+            time_tracker = time.time()
+            print('Recording started')
+            # print(time_tracker)
+            if time_tracker > start_time + 5 or first_run:
+
+                print(start_time)
+                start_time = time_tracker
+
+                # A event is writen to the window that we need to record and analyse audio
+                _VARS['window'].write_event_value('-THREAD-', threading.current_thread().name)
+
+                # Variable used to detect and pass the first run should be set to False now
+                first_run = False
+
+            time.sleep(5)  # Timer otherwise the tracker wont work
+        else:
+            time.sleep(1)  # 1 sec sleeper until next variable check
+
+# Set the sampling frequency of the operation and amount of channels
+fs = 44100
+sd.default.samplerate = fs
+sd.default.channels = 2
+#  This is the recording device, Find recording device with command
+sd.default.device = 1  # This is the Realtek audio mic
+duration = 5  # seconds
+
+# First the setup bit, create thread that keeps track of the time
+recording_enabled = False
+analysed = False
+timer_thread = threading.Thread(target=threading_function)
+timer_thread.start()  # Start the thread
+
+# Make synthetic data
+dataSize = 1000
+xData = np.random.randint(100, size=dataSize)
+yData = np.linspace(0, dataSize, num=dataSize, dtype=int)
+# make fig and plot
+fig = plt.figure()
+plt.plot(xData, yData, '.k')
+# Instead of plt.show
+draw_figure(_VARS['window']['figCanvas'].TKCanvas, fig)
 
 # Event Loop to process "events" and get the "values" of the inputs
 while True:
-    event, values = window.read()
-    if event == sg.WIN_CLOSED or event == 'Cancel': # if user closes window or clicks cancel
+    event, values = _VARS['window'].read()
+
+    if event == sg.WIN_CLOSED or event == 'Stop Application':  # if user closes window or clicks cancel
         break
 
-    if event == 'Record BPM':
-        print('Recording started')
-        record_audio()
-        analyse_audio()
+    if event == 'Start Recording':
+        print('Recording enabled')
+        recording_enabled = True
 
-window.close()
+    if event == 'Stop Recording':
+        print('Recording stopped')
+        recording_enabled = False
 
-# Hello Cheffo
-print("Ojalele")
+    if event == THREAD_EVENT:
+        record_audio()  # Recording can be done by the thread
+        if not analysed:
+            analyse_audio()
+            analysed = True
+
+timer_thread.join()
+_VARS['window'].close()
+
 
 
 

@@ -153,48 +153,49 @@ def calc_bpm(
 
     # print(avg_list)
     #
-    # if avg_list is True:
+    if avg_list is True:
         # Already add the first item to provide a reference
 
-    sorting_list.append([avg_list[0]])
+        sorting_list.append([avg_list[0]])
 
-    for idx, val in enumerate(avg_list[1:]):
-        create_new = False
+        for idx, val in enumerate(avg_list[1:]):
+            create_new = False
 
-        for sorting_list_item in sorting_list:
-                # if sorting_list_check[0] + avg_factor > avg_list[idx] < sorting_list_check[0] + avg_factor:
-            if sorting_list_item[0] - avg_factor < avg_list[idx] < sorting_list_item[0] + avg_factor:
+            for sorting_list_item in sorting_list:
+                    # if sorting_list_check[0] + avg_factor > avg_list[idx] < sorting_list_check[0] + avg_factor:
+                if sorting_list_item[0] - avg_factor < avg_list[idx] < sorting_list_item[0] + avg_factor:
 
-                sorting_list_item.append(avg_list[idx])
-                # We use the first item out of the
-                create_new = False
-                break
-            else:
-                create_new = True
+                    sorting_list_item.append(avg_list[idx])
+                    # We use the first item out of the
+                    create_new = False
+                    break
+                else:
+                    create_new = True
 
-        if create_new:
-            sorting_list.append([avg_list[idx]])
+            if create_new:
+                sorting_list.append([avg_list[idx]])
 
-    print(sorting_list)
+        print(sorting_list)
 
-    # Determine the biggest data batch, longest array of difference
-    longest_array = sorting_list[0]
+        # Determine the biggest data batch, longest array of difference
+        longest_array = sorting_list[0]
 
-    for index, item in enumerate(sorting_list[1:]):
-        if index < len(sorting_list)-1:
-            if len(sorting_list[index]) >= len(longest_array):
-                longest_array = sorting_list[index]
+        for index, item in enumerate(sorting_list[1:]):
+            if index < len(sorting_list)-1:
+                if len(sorting_list[index]) >= len(longest_array):
+                    longest_array = sorting_list[index]
 
-    print("Array with longest list: ", longest_array)
+        print("Array with longest list: ", longest_array)
 
-    avg_time_val = np.average(longest_array)
+        avg_time_val = np.average(longest_array)
 
-    bpm = 60/avg_time_val
+        bpm = 60/avg_time_val
+    else:
+        # There is no beat detected so the bpm will be set to 0
+        print("No bpm could be detected")
+        bpm = 0
 
     return bpm
-    # else:
-    #     print("No bpm could be detected")
-    #     return 0
 
 def onset_detect(
     y=None,
