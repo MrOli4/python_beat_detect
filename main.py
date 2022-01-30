@@ -36,11 +36,12 @@ _VARS['window'] = sg.Window('Such Window',
 
 THREAD_EVENT = '-THREAD-'
 
-def draw_figure(canvas, figure):
-    figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
-    figure_canvas_agg.draw()
-    figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
-    return figure_canvas_agg
+# Setup the figure
+fig, ax = plt.subplots(nrows=2, sharex=True)
+figure_canvas_agg = FigureCanvasTkAgg(fig, _VARS['window']['figCanvas'].TKCanvas)
+figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
+
+sample_wait = 15
 
 # define the countdown func. From https://www.geeksforgeeks.org/how-to-create-a-countdown-timer-using-python/
 def countdown(time_sec):
@@ -77,6 +78,8 @@ def analyse_audio():
 
     y = filtered_signal
 
+    # filtered_signal = y
+
     # tempo_lib, beats = librosa.beat.beat_track(y=y, sr=sr)
 
     o_env = onset_strength_multi(filtered_signal, sr=sr)
@@ -85,17 +88,20 @@ def analyse_audio():
     times = librosa.times_like(o_env, sr=sr)
 
     D = np.abs(librosa.stft(y))
-    fig, ax = plt.subplots(nrows=2, sharex=True)
+
+    # Figure is defined outside of this function to remain same when recursively calling
+    ax[0].cla()
     librosa.display.specshow(librosa.amplitude_to_db(D, ref=np.max), x_axis='time', y_axis='log', ax=ax[0])
     ax[0].set(title='Power spectrogram')
     ax[0].label_outer()
 
+    ax[1].cla()
     ax[1].plot(times, o_env, label='Onset strength')
     ax[1].vlines(times[onset_frames], 0, o_env.max(), color='r', alpha=0.9, linestyle='--', label='Onsets')
     ax[1].legend()
 
     # _VARS['window']['figCanvas'].TKCanvas.delete("all")
-    draw_figure(_VARS['window']['figCanvas'].TKCanvas, fig)
+    figure_canvas_agg.draw()
 
     # plt.show()
 
@@ -111,7 +117,7 @@ def threading_function():
         if recording_enabled:
             time_tracker = time.time()
             # print(time_tracker)
-            if time_tracker > start_time + 10 or first_run:
+            if time_tracker > start_time + sample_wait or first_run:
 
                 start_time = time_tracker
 
@@ -131,7 +137,7 @@ sd.default.samplerate = fs
 sd.default.channels = 2
 #  This is the recording device, Find recording device with command
 sd.default.device = 1  # This is the Realtek audio mic
-duration = 5  # seconds
+duration = 8  # seconds
 
 # First the setup bit, create thread that keeps track of the time
 recording_enabled = False
@@ -162,13 +168,9 @@ while True:
         if values[THREAD_EVENT] == 'analyse':
             print("Analyse")
             record_thread.join()
-
             # Only want to run this once now
-            if analysed is False:
-                analyse_audio()
-                analysed = True
+            analyse_audio()
 
-timer_thread.join()
 _VARS['window'].close()
 
 
