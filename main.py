@@ -37,7 +37,8 @@ _VARS['window'] = sg.Window('Such Window',
 THREAD_EVENT = '-THREAD-'
 
 # Setup the figure
-fig, ax = plt.subplots(nrows=2, sharex=True)
+fig, ax = plt.subplots(nrows=3, sharex=False)
+
 figure_canvas_agg = FigureCanvasTkAgg(fig, _VARS['window']['figCanvas'].TKCanvas)
 figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
 
@@ -101,18 +102,15 @@ def analyse_audio():
     ax[1].legend()
 
     # _VARS['window']['figCanvas'].TKCanvas.delete("all")
-    figure_canvas_agg.draw()
+    #figure_canvas_agg.draw()
 
     # plt.show()
 def pid_function(setpoint, output, reset, pre_error):
     kP = 0.5
     tauI = 1
     tauD = 1
-    print(setpoint)
     error = setpoint - output
-    print(error)
     reset = reset + (kP / tauI) * error
-    print(reset)
     output = kP * error + reset + ((pre_error - error) * (kP / tauD))
 
     print(output)
@@ -164,6 +162,7 @@ output = 0
 pre_error = 0
 reset = 0
 adapt = False
+output_array = [output]
 # Event Loop to process "events" and get the "values" of the inputs
 while True:
     event, values = _VARS['window'].read()
@@ -199,9 +198,12 @@ while True:
 
                 if (abs((output - setpoint)) < (setpoint * 0.05)):
                     adapt = False
-                    print('BPM reached')
                 else:
                     output, reset, pre_error = pid_function(int(values[0]), output, reset, pre_error)
+            output_array.append(output)
+            ax[2].cla()
+            ax[2].plot(output_array)
+            figure_canvas_agg.draw()
 
 _VARS['window'].close()
 
