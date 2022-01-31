@@ -42,7 +42,8 @@ fig, ax = plt.subplots(nrows=3, sharex=False)
 figure_canvas_agg = FigureCanvasTkAgg(fig, _VARS['window']['figCanvas'].TKCanvas)
 figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
 
-sample_wait = 15
+sample_wait = 10
+duration = 5
 
 # define the countdown func. From https://www.geeksforgeeks.org/how-to-create-a-countdown-timer-using-python/
 def countdown(time_sec):
@@ -61,15 +62,16 @@ def record_audio():
     # Countdown for the amount of seconds that it has to record
     countdown(duration)
 
-    print("Oi")
+    print("Wait until done")
 
     sd.wait()  # Wait until recording is finished, you do not have to wait but can run other commands, like a thread
-
     write('audio/output.wav', fs, myrecording)  # Save as WAV file
+
+    print("Wrote to file")
 
     _VARS['window'].write_event_value('-THREAD-', 'analyse')
 
-    print("Done recording")
+    return None
 
 
 def analyse_audio():
@@ -133,14 +135,14 @@ def threading_function():
             time_tracker = time.time()
             # print(time_tracker)
             if time_tracker > start_time + sample_wait or first_run:
+                # Variable used to detect and pass the first run should be set to False now
+                if first_run:
+                    first_run = False
 
                 start_time = time_tracker
 
                 # A event is writen to the window that we need to record and analyse audio
                 _VARS['window'].write_event_value('-THREAD-', 'start_rec')
-
-                # Variable used to detect and pass the first run should be set to False now
-                first_run = False
 
             time.sleep(1)  # Timer otherwise the tracker wont work
         else:
@@ -152,7 +154,6 @@ sd.default.samplerate = fs
 sd.default.channels = 2
 #  This is the recording device, Find recording device with command
 sd.default.device = 1  # This is the Realtek audio mic
-duration = 8  # seconds
 
 # First the setup bit, create thread that keeps track of the time
 recording_enabled = False

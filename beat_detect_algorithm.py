@@ -51,7 +51,7 @@ def peak_pick(onset_env, pre_max, post_max, pre_avg, post_avg, delta, wait):
     # print("Onset env")
     # print(onset_env)
 
-    # Get the maximum of the signal over a sliding window, how long is the sliding window tho?
+    # Get the maximum of the signal over a sliding window
     max_length = pre_max + post_max
     max_origin = np.ceil(0.5 * (pre_max - post_max)) # Now is just 0 but different samples could mess with this
     # Using mode='constant' and cval = x.min() effectively truncates the sliding window at the boundaries
@@ -181,6 +181,8 @@ def calc_bpm(
         longest_array = sorting_list[0]
 
         for index, item in enumerate(sorting_list[1:]):
+            # First check if the length makes sense, more than x in a minute is weird
+
             if index < len(sorting_list)-1:
                 if len(sorting_list[index]) >= len(longest_array):
                     longest_array = sorting_list[index]
@@ -189,7 +191,11 @@ def calc_bpm(
 
         avg_time_val = np.average(longest_array)
 
-        bpm = 60/avg_time_val
+        if avg_time_val != 0:
+            bpm = 60/avg_time_val
+        else:
+            bpm = 0
+
     else:
         # There is no beat detected so the bpm will be set to 0
         print("No bpm could be detected")
@@ -233,7 +239,7 @@ def onset_detect(
         kwargs.setdefault("post_max", 0.00 * sr // hop_length + 1)  # 0ms
         kwargs.setdefault("pre_avg", 0.10 * sr // hop_length)  # 100ms
         kwargs.setdefault("post_avg", 0.10 * sr // hop_length + 1)  # 100ms
-        kwargs.setdefault("wait", 0.3 * sr // hop_length)  # 300ms
+        kwargs.setdefault("wait", 0.03 * sr // hop_length)  # 30ms
         kwargs.setdefault("delta", 0.2)
 
         # Peak pick the onset envelope
@@ -265,7 +271,7 @@ def onset_detect(
     # print("Sample_onsets")
     # print(sample_onsets)
 
-    offset = 10
+    offset = 0
     snippitsize = 4000
 
     kick_output = []
@@ -287,53 +293,54 @@ def onset_detect(
             print("Freq in Hz:", freq_in_hertz)
 
             freq_list.append(freq_in_hertz)
+
             kick_output.append(x)
 
-    sorting_list = []
-    avg_factor = 7  # Avg factor for grouping the freq data
-
-    # Now find the most common dominant frequency in freq list
-    if freq_list:
-        # Already add the first item to provide a reference
-
-        sorting_list.append([freq_list[0]])
-
-        for idx, val in enumerate(freq_list[1:]):
-            create_new = False
-
-            for sorting_list_item in sorting_list:
-                # if sorting_list_check[0] + avg_factor > avg_list[idx] < sorting_list_check[0] + avg_factor:
-                if sorting_list_item[0] - avg_factor < freq_list[idx] < sorting_list_item[0] + avg_factor:
-
-                    sorting_list_item.append(freq_list[idx])
-                    # We use the first item out of the
-                    create_new = False
-                    break
-                else:
-                    create_new = True
-
-            if create_new:
-                sorting_list.append([freq_list[idx]])
-
-        print(sorting_list)
-
-        # Determine the biggest data batch, longest array of difference
-        longest_array = sorting_list[0]
-
-        for index, item in enumerate(sorting_list[1:]):
-            if index < len(sorting_list)-1:
-                if len(sorting_list[index]) >= len(longest_array):
-                    longest_array = sorting_list[index]
-
-        print("Longest freq list: ", longest_array)
-
-        for item in longest_array:
-            for id, x in enumerate(freq_list):
-                if x == item:
-                    kick_output.append(sample_onsets[id])
-
-    else:
-        kick_output = []
+    # sorting_list = []
+    # avg_factor = 7  # Avg factor for grouping the freq data
+    #
+    # # Now find the most common dominant frequency in freq list
+    # if freq_list:
+    #     # Already add the first item to provide a reference
+    #
+    #     sorting_list.append([freq_list[0]])
+    #
+    #     for idx, val in enumerate(freq_list[1:]):
+    #         create_new = False
+    #
+    #         for sorting_list_item in sorting_list:
+    #             # if sorting_list_check[0] + avg_factor > avg_list[idx] < sorting_list_check[0] + avg_factor:
+    #             if sorting_list_item[0] - avg_factor < freq_list[idx] < sorting_list_item[0] + avg_factor:
+    #
+    #                 sorting_list_item.append(freq_list[idx])
+    #                 # We use the first item out of the
+    #                 create_new = False
+    #                 break
+    #             else:
+    #                 create_new = True
+    #
+    #         if create_new:
+    #             sorting_list.append([freq_list[idx]])
+    #
+    #     print(sorting_list)
+    #
+    #     # Determine the biggest data batch, longest array of difference
+    #     longest_array = sorting_list[0]
+    #
+    #     for index, item in enumerate(sorting_list[1:]):
+    #         if index < len(sorting_list)-1:
+    #             if len(sorting_list[index]) >= len(longest_array):
+    #                 longest_array = sorting_list[index]
+    #
+    #     print("Longest freq list: ", longest_array)
+    #
+    #     for item in longest_array:
+    #         for id, x in enumerate(freq_list):
+    #             if x == item:
+    #                 kick_output.append(sample_onsets[id])
+    #
+    # else:
+    #     kick_output = []
 
 
     # Get the estimated bpm and round off to the closed whole number
