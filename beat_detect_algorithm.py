@@ -233,8 +233,8 @@ def onset_detect(
         kwargs.setdefault("post_max", 0.00 * sr // hop_length + 1)  # 0ms
         kwargs.setdefault("pre_avg", 0.10 * sr // hop_length)  # 100ms
         kwargs.setdefault("post_avg", 0.10 * sr // hop_length + 1)  # 100ms
-        kwargs.setdefault("wait", 0.03 * sr // hop_length)  # 30ms
-        kwargs.setdefault("delta", 0.3)
+        kwargs.setdefault("wait", 0.3 * sr // hop_length)  # 300ms
+        kwargs.setdefault("delta", 0.2)
 
         # Peak pick the onset envelope
         onsets = peak_pick(onset_envelope, **kwargs)
@@ -269,6 +269,7 @@ def onset_detect(
     snippitsize = 4000
 
     kick_output = []
+    freq_list = []
 
     for x in sample_onsets:
         begin_snippit = x
@@ -278,23 +279,65 @@ def onset_detect(
             # Next part is from https://stackoverflow.com/questions/3694918/how-to-extract-frequency-associated-with-fft-values-in-python/27191172
             w = np.fft.fft(audio_snippit)
             freqs = np.fft.fftfreq(len(w))
-            # print(freqs.min(), freqs.max())
-            # (-0.5, 0.499975)
 
-            # Find the peak in the coefficients
+            # Find the peak in the coefficients of frequencies
             idx = np.argmax(np.abs(w))
             freq = freqs[idx]
             freq_in_hertz = abs(freq * 41000)
-            # print("Freq in Hz:", freq_in_hertz)
+            print("Freq in Hz:", freq_in_hertz)
 
-            # if freq_in_hertz < 200 and freq_in_hertz > 80:
-                # Now I am highly cherry-picking
+            freq_list.append(freq_in_hertz)
             kick_output.append(x)
 
-    # print("Kick Output")
-    # print(kick_output)
+    sorting_list = []
+    avg_factor = 7  # Avg factor for grouping the freq data
 
-    bpm = calc_bpm(onsets=kick_output, sr=sr)
+    # Now find the most common dominant frequency in freq list
+    if freq_list:
+        # Already add the first item to provide a reference
+
+        sorting_list.append([freq_list[0]])
+
+        for idx, val in enumerate(freq_list[1:]):
+            create_new = False
+
+            for sorting_list_item in sorting_list:
+                # if sorting_list_check[0] + avg_factor > avg_list[idx] < sorting_list_check[0] + avg_factor:
+                if sorting_list_item[0] - avg_factor < freq_list[idx] < sorting_list_item[0] + avg_factor:
+
+                    sorting_list_item.append(freq_list[idx])
+                    # We use the first item out of the
+                    create_new = False
+                    break
+                else:
+                    create_new = True
+
+            if create_new:
+                sorting_list.append([freq_list[idx]])
+
+        print(sorting_list)
+
+        # Determine the biggest data batch, longest array of difference
+        longest_array = sorting_list[0]
+
+        for index, item in enumerate(sorting_list[1:]):
+            if index < len(sorting_list)-1:
+                if len(sorting_list[index]) >= len(longest_array):
+                    longest_array = sorting_list[index]
+
+        print("Longest freq list: ", longest_array)
+
+        for item in longest_array:
+            for id, x in enumerate(freq_list):
+                if x == item:
+                    kick_output.append(sample_onsets[id])
+
+    else:
+        kick_output = []
+
+
+    # Get the estimated bpm and round off to the closed whole number
+    bpm = round(calc_bpm(onsets=kick_output, sr=sr))
     print("BPM: ", bpm)
 
     onsets = core.samples_to_frames(kick_output, hop_length=hop_length)

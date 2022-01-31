@@ -60,16 +60,20 @@ def record_audio():
     # Countdown for the amount of seconds that it has to record
     countdown(duration)
 
+    print("Oi")
+
     sd.wait()  # Wait until recording is finished, you do not have to wait but can run other commands, like a thread
-    print("Done recording")
 
     write('audio/output.wav', fs, myrecording)  # Save as WAV file
 
     _VARS['window'].write_event_value('-THREAD-', 'analyse')
 
+    print("Done recording")
+
+
 def analyse_audio():
     # The code that is actually run
-    y, sr = librosa.load("audio/output.wav", offset=2, duration=2)
+    y, sr = librosa.load("audio/output.wav", offset=0, duration=duration)
 
     t = np.linspace(0, 1, 1000, False)
     # Create the filter, since dance music is of importance simple low pass filter, with fcut at 200 Hz
