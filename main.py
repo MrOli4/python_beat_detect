@@ -104,6 +104,19 @@ def analyse_audio():
     figure_canvas_agg.draw()
 
     # plt.show()
+def pid_function(setpoint, output, reset, pre_error):
+    kP = 0.5
+    tauI = 1
+    tauD = 1
+    print(setpoint)
+    error = setpoint - output
+    print(error)
+    reset = reset + (kP / tauI) * error
+    print(reset)
+    output = kP * error + reset + ((pre_error - error) * (kP / tauD))
+
+    print(output)
+    return output, reset, pre_error
 
 def threading_function():
     """This function is the thread that keeps track of the current time in the system, updates every 5 seconds
@@ -146,6 +159,11 @@ timer_thread = threading.Thread(target=threading_function)
 
 timer_thread.start()  # Start the thread
 
+# PID values
+output = 0
+pre_error = 0
+reset = 0
+adapt = False
 # Event Loop to process "events" and get the "values" of the inputs
 while True:
     event, values = _VARS['window'].read()
@@ -161,6 +179,9 @@ while True:
         print('Recording stopped')
         recording_enabled = False
 
+    if event == 'Go to BPM':
+        adapt = True
+
     if event == THREAD_EVENT:
         if values[THREAD_EVENT] == 'start_rec':
             record_thread = threading.Thread(target=record_audio)
@@ -170,6 +191,17 @@ while True:
             record_thread.join()
             # Only want to run this once now
             analyse_audio()
+            if adapt == True:
+                try:
+                    setpoint = int(values[0])
+                except:
+                    setpoint = output
+
+                if (abs((output - setpoint)) < (setpoint * 0.05)):
+                    adapt = False
+                    print('BPM reached')
+                else:
+                    output, reset, pre_error = pid_function(int(values[0]), output, reset, pre_error)
 
 _VARS['window'].close()
 
