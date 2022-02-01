@@ -151,8 +151,8 @@ def calc_bpm(
     sorting_list = []
     avg_factor = 0.05  # Change if needed
 
-    print(avg_list)
-    #
+    # print(avg_list)
+
     if avg_list:
         # Already add the first item to provide a reference
 
@@ -175,7 +175,7 @@ def calc_bpm(
             if create_new:
                 sorting_list.append([avg_list[idx]])
 
-        print(sorting_list)
+        # print(sorting_list)
 
         # Determine the biggest data batch, longest array of difference
         longest_array = sorting_list[0]
@@ -187,7 +187,7 @@ def calc_bpm(
                 if len(sorting_list[index]) >= len(longest_array):
                     longest_array = sorting_list[index]
 
-        print("Array with longest list: ", longest_array)
+        # print("Array with longest list: ", longest_array)
 
         avg_time_val = np.average(longest_array)
 
@@ -290,7 +290,7 @@ def onset_detect(
             idx = np.argmax(np.abs(w))
             freq = freqs[idx]
             freq_in_hertz = abs(freq * 41000)
-            print("Freq in Hz:", freq_in_hertz)
+            # print("Freq in Hz:", freq_in_hertz)
 
             freq_list.append(freq_in_hertz)
 
@@ -342,14 +342,9 @@ def onset_detect(
     # else:
     #     kick_output = []
 
-
-    # Get the estimated bpm and round off to the closed whole number
-    bpm = round(calc_bpm(onsets=kick_output, sr=sr))
-    print("BPM: ", bpm)
-
     onsets = core.samples_to_frames(kick_output, hop_length=hop_length)
 
-    return onsets
+    return onsets, kick_output
 
 
 @cache(level=30)
