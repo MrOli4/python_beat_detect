@@ -144,15 +144,16 @@ def analyse_audio(speed):
     return bpm
 
 def pid_function(setpoint, output, reset, pre_error):
-    kP = 0.5
-    tauI = 1
-    tauD = 1
+    kP = 0.5  # Gain value
+    tauI = 1  # Reset value
+    tauD = 1  # Preact value
     error = setpoint - output
-    reset = reset + (kP / tauI) * error
-    output = kP * error + reset + ((pre_error - error) * (kP / tauD))
+    reset = reset + (kP / tauI) * error  # Calculate the integral
+    derivative = ((pre_error - error) * (kP / tauD))  # Calculate the derivative
+    output = kP * error + reset + derivative  # Calculate the output
+    pre_error = error  # Save error for next loop use
 
-    print(output)
-    return output, reset, pre_error
+    return int(output), reset, pre_error  # Return the output, integral and pre_error
 
 def threading_function():
     """This function is the thread that keeps track of the current time in the system, updates every 5 seconds
@@ -194,9 +195,10 @@ timer_thread = threading.Thread(target=threading_function)
 timer_thread.start()  # Start the thread
 
 # PID values
-output = 0
+output = 200
 pre_error = 0
-reset = 0
+setpoint = 0
+reset = output
 adapt = False
 output_array = [output]
 # Event Loop to process "events" and get the "values" of the inputs
@@ -216,7 +218,17 @@ while True:
         recording_enabled = False
 
     if event == 'Go to BPM':
-        adapt = True
+        print("adapt = true")
+
+        # if a valid int is provided to adjust the BPM to make this the setpoint
+        try:
+            setpoint = int(values['textbox'])
+            adapt = True
+        except:
+            # if anything else than an int is provided setpoint remains the current BPM
+            print("you did not enter int but:", values['textbox'])
+            setpoint = output
+            adapt = False
 
     if event == THREAD_EVENT:
         if values[THREAD_EVENT] == 'start_rec':
@@ -226,28 +238,34 @@ while True:
             print("Analyse")
 
             # record_thread.join()
-
             # The analyse audio function takes a speed variable, from 20 to 240, this is the BPM of the PID controller
             # The function return the bpm after analysis of the audio that comes with the PID controller bpm
-            bpm_after_analysis = analyse_audio(217)
+            print("Output:", output)
+            bpm_after_analysis = analyse_audio(output)
 
             print("BPM: ", bpm_after_analysis)
 
             _VARS['window']['bpm_showcase'].update(bpm_after_analysis)
 
-            if adapt == True:
-                try:
-                    setpoint = int(values[0])
-                except:
-                    setpoint = output
+            if adapt:
 
-                if (abs((output - setpoint)) < (setpoint * 0.05)):
+                # check if the setpoint and outpunt are close enough for the adjustments to stop
+                if abs((output - setpoint)) < 1:
+                    print("The adaption can stop")
                     adapt = False
                 else:
-                    output, reset, pre_error = pid_function(int(values[0]), output, reset, pre_error)
-            output_array.append(output)
+                    # Still perform the adaption
+                    output, reset, pre_error = pid_function(setpoint, bpm_after_analysis, reset, pre_error)
+
+                    # if the intended adjustment is not possible within this simulation make the output a boundary term
+                    if output < 20:
+                        output = 20
+                    elif output > 240:
+                        output = 240
+
+            output_array.append(output)  # add latest output to array
             ax[2].cla()
-            ax[2].plot(output_array)
+            ax[2].plot(output_array)    # plot the latest output in the graph
             figure_canvas_agg.draw()
 
 _VARS['window'].close()
