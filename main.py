@@ -13,7 +13,7 @@ import sounddevice as sd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from beat_detect_algorithm import onset_detect
-from beat_detect_algorithm import onset_strength_multi
+from beat_detect_algorithm import onset_strength
 from beat_detect_algorithm import calc_bpm
 
 """ 
@@ -53,7 +53,7 @@ figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
 # Some global variables used to control the response of the whole application
 sample_wait = 10  # Time to wait until taking a next sample
 duration = 5  # Duration of the recording of a sample
-testmode = True  # Boolean that tells if the program is in test mode or not.
+testmode = False  # Boolean that tells if the program is in test mode or not.
 
 
 def countdown(time_sec):
@@ -64,7 +64,7 @@ def countdown(time_sec):
         timeformat = '{:02d}:{:02d}'.format(mins, secs)
         print(timeformat)
         time.sleep(1)
-        _VARS['window']['timer'].update(timeformat)
+        # _VARS['window']['timer'].update(timeformat)
         time_sec -= 1
 
     _VARS['window']['timer'].update("Timer finished")
@@ -72,7 +72,7 @@ def countdown(time_sec):
 def record_audio():
     """Method to record audio, should only record audio if it is not in testmode, in testmode the application uses
     predefined audio files located in the audio folder. """
-    countdown(duration)
+
     if not testmode:
 
         myrecording = sd.rec(int(duration * fs))
@@ -86,7 +86,8 @@ def record_audio():
         write('audio/output.wav', fs, myrecording)  # Save as WAV file
 
         print("Wrote to file")
-
+    else:
+        countdown(duration)
     # Signal that the audio can be analysed
     _VARS['window'].write_event_value('-THREAD-', 'analyse')
 
@@ -111,6 +112,8 @@ def analyse_audio(speed):
 
     y, sr = librosa.load(filename, offset=0, duration=duration)
 
+    # y, sr = librosa.load("audio/daylight.wav", offset=15, duration=duration)
+
     # Create the filter, since dance music is of importance simple low pass filter, with fcut at 200 Hz
     sos = scipy.signal.butter(30, 200, 'lp', fs=sr, output='sos')
     filtered_signal = scipy.signal.sosfilt(sos, y)  # Apply the filter
@@ -118,7 +121,7 @@ def analyse_audio(speed):
     y = filtered_signal
 
     # First create a full onset envelope
-    o_env = onset_strength_multi(filtered_signal, sr=sr)
+    o_env = onset_strength(filtered_signal, sr=sr)
     # Get the onset points picked out form the onset envelope (after peak picking), in both frames and samples
     onset_frames, onset_samples = onset_detect(y=y, onset_envelope=o_env, sr=sr)
     # Get the BPM from the onset points after peak picking, use onset points in samples
@@ -263,7 +266,8 @@ while True:
                     elif output > 240:
                         output = 240
 
-            output_array.append(output)  # add latest output to array
+                output_array.append(output)  # add latest output to array
+
             ax[2].cla()
             ax[2].plot(output_array)    # plot the latest output in the graph
             figure_canvas_agg.draw()
